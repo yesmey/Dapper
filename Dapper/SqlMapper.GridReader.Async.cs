@@ -161,14 +161,14 @@ namespace Dapper
                 if (reader == null) throw new ObjectDisposedException(GetType().FullName, "The reader has been disposed; this can happen after all data has been consumed");
                 if (IsConsumed) throw new InvalidOperationException("Query results must be consumed in the correct order, and each result can only be consumed once");
                 var typedIdentity = identity.ForGrid(type, gridIndex);
-                CacheInfo cache = GetCacheInfo(typedIdentity, null, addToCache);
-                var deserializer = cache.Deserializer;
+                CacheInfo info = addToCache ? GetCacheInfo(typedIdentity, null, addToCache) : null;
+                var deserializer = info?.Deserializer ?? default(DeserializerState);
 
                 int hash = GetColumnHash(reader);
                 if (deserializer.Func == null || deserializer.Hash != hash)
                 {
                     deserializer = new DeserializerState(hash, GetDeserializer(type, reader, 0, -1, false));
-                    cache.Deserializer = deserializer;
+                    if (info != null) info.Deserializer = deserializer;
                 }
                 IsConsumed = true;
                 if (buffered && reader is DbDataReader)
@@ -201,14 +201,14 @@ namespace Dapper
                 if (await reader.ReadAsync(cancel).ConfigureAwait(false) && reader.FieldCount != 0)
                 {
                     var typedIdentity = identity.ForGrid(type, gridIndex);
-                    CacheInfo cache = GetCacheInfo(typedIdentity, null, addToCache);
-                    var deserializer = cache.Deserializer;
+                    CacheInfo info = addToCache ? GetCacheInfo(typedIdentity, null, addToCache) : null;
+                    var deserializer = info?.Deserializer ?? default(DeserializerState);
 
                     int hash = GetColumnHash(reader);
                     if (deserializer.Func == null || deserializer.Hash != hash)
                     {
                         deserializer = new DeserializerState(hash, GetDeserializer(type, reader, 0, -1, false));
-                        cache.Deserializer = deserializer;
+                        if (info != null) info.Deserializer = deserializer;
                     }
                     result = (T)deserializer.Func(reader);
                     if ((row & Row.Single) != 0 && await reader.ReadAsync(cancel).ConfigureAwait(false)) ThrowMultipleRows(row);
